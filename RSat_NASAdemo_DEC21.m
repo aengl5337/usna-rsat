@@ -129,7 +129,7 @@ a=input("Input X Angle (rad): ");
 b=input("Input Y Angle (rad): ");
 c=input("Input Z Angle (rad): ");
 Tf_cmd1=Tx(X)*Ty(Y)*Tz(Z)*Rx(a)*Ry(b)*Rz(c); %Transform calculator
-thetas_invcmd1=180/pi*robot.ikine(Tf_cmd1,thetas_invc);
+thetas_invcmd1=180/pi*robot.ikine(Tf_cmd1,thetas_invc,'rlimit',250); %rlimit increases the rejected step limit, allowing for larger movements to be accomplished
 thetas_invcmd1=wrapToPi(thetas_invcmd1*pi/180)*180/pi; %Prevents colision with previous link by avoiding rotation larger than 180 deg in either direction
 l=20; % Number of discrete motion steps
 thetas_invcmd1_j = thetas_invc; % Incrementally increasing theta vector
@@ -144,7 +144,7 @@ end
 % Tf_cmd2=[1 0 0 -400
 % 0 1 0 100
 % 0 0 1 0
-% 0 0 0 1];
+% 0 0 0 1]; 
 X=input("Input X Cord (mm): "); %User entered cordinate values
 Y=input("Input Y Cord (mm): ");
 Z=input("Input Z Cord (mm): ");
@@ -152,7 +152,7 @@ a=input("Input X Angle (rad): ");
 b=input("Input Y Angle (rad): ");
 c=input("Input Z Angle (rad): ");
 Tf_cmd2=Tx(X)*Ty(Y)*Tz(Z)*Rx(a)*Ry(b)*Rz(c);
-thetas_invcmd2=180/pi*robot.ikine(Tf_cmd2,thetas_invcmd1);
+thetas_invcmd2=180/pi*robot.ikine(Tf_cmd2,thetas_invc,'rlimit',250); %rlimit increases the rejected step limit, allowing for larger movements to be accomplished
 thetas_invcmd2=wrapToPi(thetas_invcmd2*pi/180)*180/pi;
 
 l=20; % Number of discrete motion steps
