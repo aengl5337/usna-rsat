@@ -12,10 +12,11 @@ figind = 1;
 %
 % Author(s):
 % Alec Engl
+%Riley Cushing
 
 % Replace this with the directory that houses rtb, common, and smtb folders
 % corkeTBpath = 'C:\Users\Alec';
-corkeTBpath = '.';
+corkeTBpath = 'C:\Users\m231362\Desktop\School\RSAT';
 addpath(corkeTBpath);
 addpath rtb common smtb
 
@@ -102,8 +103,9 @@ hold on
 thetas_fwdc = [90 45 -30 30 -30 0];
 Tf_c = robot.fkine((pi/180)*thetas_fwdc);
 thetas_invc = 180/pi*robot.ikine(Tf_c,thetas_i);
+thetas_invc=wrapToPi(thetas_invc*pi/180)*180/pi; %Wrap to avoid large rotation and previous link colision, also helps improve ikin preformance
 
-% Animated plotting:
+% Animated plotting
 % Have to make a separate loop, once robot constructed to animate
 l=20; % Number of discrete motion steps
 thetas_invc_j = thetas_i; % Incrementally increasing theta vector
@@ -116,10 +118,53 @@ for k=1:nLinks
 end
 
 % *** At this point, the robot is in its central pose
+% Tf_cmd1=[1 0 0 -475 %Hard code Transform
+% 0 1 0 60
+% 0 0 1 60
+% 0 0 0 1];
+X=input("Input X Cord (mm): "); %User entered position and pose
+Y=input("Input Y Cord (mm): ");
+Z=input("Input Z Cord (mm): ");
+a=input("Input X Angle (rad): ");
+b=input("Input Y Angle (rad): ");
+c=input("Input Z Angle (rad): ");
+Tf_cmd1=Tx(X)*Ty(Y)*Tz(Z)*Rx(a)*Ry(b)*Rz(c); %Transform calculator
+thetas_invcmd1=180/pi*robot.ikine(Tf_cmd1,thetas_invc);
+thetas_invcmd1=wrapToPi(thetas_invcmd1*pi/180)*180/pi; %Prevents colision with previous link by avoiding rotation larger than 180 deg in either direction
+l=20; % Number of discrete motion steps
+thetas_invcmd1_j = thetas_invc; % Incrementally increasing theta vector
+for k=1:nLinks
+    del = (thetas_invcmd1(k)-thetas_invc(k))/l;  % Take overall delta between starting and end angles and divide them up into l steps
+    for j=1:l
+        thetas_invcmd1_j(k) = thetas_invcmd1_j(k) + del;
+        robot.plot((pi/180)*thetas_invcmd1_j)
+    end
+end
+% Robot is in Commanded Pose 1
+% Tf_cmd2=[1 0 0 -400
+% 0 1 0 100
+% 0 0 1 0
+% 0 0 0 1];
+X=input("Input X Cord (mm): "); %User entered cordinate values
+Y=input("Input Y Cord (mm): ");
+Z=input("Input Z Cord (mm): ");
+a=input("Input X Angle (rad): ");
+b=input("Input Y Angle (rad): ");
+c=input("Input Z Angle (rad): ");
+Tf_cmd2=Tx(X)*Ty(Y)*Tz(Z)*Rx(a)*Ry(b)*Rz(c);
+thetas_invcmd2=180/pi*robot.ikine(Tf_cmd2,thetas_invcmd1);
+thetas_invcmd2=wrapToPi(thetas_invcmd2*pi/180)*180/pi;
 
-
-
-
+l=20; % Number of discrete motion steps
+thetas_invcmd2_j = thetas_invcmd1; % Incrementally increasing theta vector
+for k=1:nLinks
+    del = (thetas_invcmd2(k)-thetas_invcmd1(k))/l;  % Take overall delta between starting and end angles and divide them up into l steps
+    for j=1:l
+        thetas_invcmd2_j(k) = thetas_invcmd2_j(k) + del;
+        robot.plot((pi/180)*thetas_invcmd2_j)
+    end
+end
+% Robot is in commanded Pose 2
 %% TRASH:
 
 
