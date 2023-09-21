@@ -1,36 +1,59 @@
-clear all 
+clear all
 close all
 format compact
 clc
+figind = 1;
+
+%% NSTAR_ArmSim_script_Corke
+% rev3 -- fixed standard D-H params to match intentions (fixed rev2, i.e. non-spherical wrist params)
+%      -- Optimized some inv kinematics code (with fixed params, ikine()
+%      now works on its own!)
 
 % Replace this with the directory that houses rtb, common, and smtb folders
-corkeTBpath = 'C:\Users\Alec';
+% corkeTBpath = 'C:\Users\Alec';
+corkeTBpath = '.';
 addpath(corkeTBpath);
 addpath rtb common smtb
+
+%% Set up robot
+% Structure dimensions (mm)
+l2 = 312.24;
+l3 = 182.02;
+l3_perp = 7.99;
+l5 = 76.6;
+
+% Angle limits for each joint (deg)
+thetasLimRng = [0,255;        % **guess**
+               -180,180;
+               -180,0;
+               -180,180;
+               -123.95,34.29; % **revise**
+               -180,180;
+               -45,135];       % **guess**
 
 % Link Lengths (mm)
 a1=0;
 a2=0;
-a3=0;
-a4=-7.99;
+a3=-l3_perp;
+a4=0;
 a5=0;
 a6=0;
 
 % Link twist angles (deg)
-alpha1=0;
-alpha2=90;
+alpha1=90;
+alpha2=-90;
 alpha3=-90;
 alpha4=-90;
 alpha5=90;
-alpha6=-90;
+alpha6=0;
 
 % Link offsets (mm)
 d1=0;
-d2=0;
-d3=-312.24;
-d4=0;
-d5=182.02;
-d6=0;
+d2=-l2;
+d3=0;
+d4=l3;
+d5=0;
+d6=l5;
 
 % Set initial thetas
 theta1=0;
@@ -49,22 +72,36 @@ sigma = zeros(6,1); % Indicating that all joints are '0', revolute
 % Create D-H Table array
 D_Hc = [(pi/180)*theta_i, d, a, (pi/180)*alpha, sigma]; % Where d is NOT offset (offset assumed zero)
 
-% Inner loop is for building robot, outer loop is for plotting the motion
-% sequentially
-l=20; % Number of discrete motion steps
-thetas_fwd = [90 45 30 30 -30 0];
-thetas_fwd_j = theta_i;
+% Loop for building robot
 nLinks = 6;
 for k=1:nLinks % NOTE: Must start with at least 3 joints
     for i=1:nLinks
         L(i) = Link(D_Hc(i,:),'standard'); % Setting params as standard
     end
     robot = SerialLink(L);
-    
-    % **Will make motion planning more complicated than simply iterating
-    % through from shoulder to wrist**
-    figure(1)
-    hold on
+end
+
+%% Forward Kinematics
+figure(figind)
+figind = figind+1;
+hold on
+% Input desired forward angles here
+thetas_fwd = [90 45 -30 30 -30 0]; % Goal
+
+% Check if falls out of bounds
+for motor = 1:nLinks
+    theta=thetas_fwd(motor);
+    if ~(theta > thetasLimRng(motor,1))||~(theta < thetasLimRng(motor,2))
+        txt = ['Theta ',num2str(motor),' is out of bounds'];
+        error(txt)
+    end
+end
+
+% Animated plotting:
+% Have to make a separate loop, once robot constructed to animate
+l=20; % Number of discrete motion steps
+thetas_fwd_j = theta_i'; % Incrementally increasing theta vector (NOTE: must be row vector)
+for k=1:nLinks
     del = thetas_fwd(k)/l;
     for j=1:l
         thetas_fwd_j(k) = thetas_fwd_j(k) + del;
@@ -72,10 +109,10 @@ for k=1:nLinks % NOTE: Must start with at least 3 joints
     end
 end
 
-% Forward Kinematics (plotting above)
+% Creating homogeneous transformation matrix for desired thetas
 Tf_cmd = robot.fkine((pi/180)*thetas_fwd);
 
-% Inverse Kinematics
+%% Inverse Kinematics rev 2 (outdated):
 % Below is the graveyard of previous attempts, most of which won't converge
 % % thetas_inv = 180/pi*robot.ikine6s(Tf_cmd,thetas_fwd) % For analytical solution
 % % of spherical wristed robots
@@ -85,7 +122,24 @@ Tf_cmd = robot.fkine((pi/180)*thetas_fwd);
 % % thetas_inv = 180/pi*robot.ikine(Tf_cmd,[0 0 0 0 0 0],[0 0 1 0 0 0]);
 % % thetas_inv = 180/pi*robot.ikunc(Tf_cmd,thetas_fwd);
 
-thetas_inv = 180/pi*robot.ikunc(Tf_cmd,theta_i);  % This one works! 
+%% Inverse Kinematics rev3 (current):
+% note: ikine6s still doesn't work
+% 1. Without initial conditions:
+thetas_inv1 = 180/pi*robot.ikine(Tf_cmd);
+figure(figind)
+robot.plot((pi/180)*thetas_inv1)
+figind = figind+1;
+% 2. With initial conditions:
+thetas_i2 = thetas_fwd - 10;
+thetas_inv2 = 180/pi*robot.ikine(Tf_cmd,(pi/180)*thetas_i2); % Specify starting thetas
+figure(figind)
+robot.plot((pi/180)*thetas_inv2)
+figind = figind+1;
+% 3. Using optimizer with ICs
+thetas_inv3 = 180/pi*robot.ikunc(Tf_cmd,thetas_i2);  % This one works! 
+figure(figind)
+robot.plot((pi/180)*thetas_inv3)
+figind = figind+1;
 % Note that we specify 'starting thetas' (theta_i)
 % Syntax:
 %SerialLink.IKUNC Inverse manipulator by optimization without joint limits
@@ -133,12 +187,11 @@ thetas_inv = 180/pi*robot.ikunc(Tf_cmd,theta_i);  % This one works!
 % Author::
 % Bryan Moutrie
 
-figure(2)
-robot.plot((pi/180)*thetas_inv)
+
 
 % Check solution
-Ti_check = robot.fkine((pi/180)*thetas_inv);
-T_error = abs(Tf_cmd - Ti_check);
+% Ti_check = robot.fkine((pi/180)*thetas_inv);
+% T_error = abs(Tf_cmd - Ti_check);
 
 
 % Below I started to write some stuff on trajectory generation but stopped
