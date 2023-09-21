@@ -5,14 +5,27 @@ clc
 figind = 1;
 
 %% RSat_NASAdemo_DEC21
-% rev0 -- borrowed everything from NSTAR_ArmSim_script_Corke_rev3.m
-%      -- Note to Riley: still need to finish up the part of the code where
+% rev0: (Alec Engl, 05DEC21)
+%      a. borrowed everything from NSTAR_ArmSim_script_Corke_rev3.m
+%      b. Initial draft of the code for the NASA demo (Riley, there are commented instructions for finishing it near the top)
+%      c. Has the RSat robot w non-spherical wrist D-H
+%      d. Note to Riley: still need to finish up the part of the code where
 %      the end effector moves from the central pose to two other poses a
 %      small distance away (start at point annotated by '***')
-%
+%      			
+% rev1: (Riley Cushing, 05DEC21)
+%      a. It has the option of either hardcoding the transform for commanded pose 1 and 2 or allowing the user to enter the coordinates and pose into the command line.
+% 		 b. The commented Transforms for commanded pose 1 and 2 have been confirmed to work, as have a variety of positions and poses near that range.
+% 		 c. Current end effector pose in the hard coded values is aligned with the base coordinate frame.
+% 		 d. Recording in armSim.mp4
+% rev2: (Riley Cushing, 06DEC21)
+% 			a. Altered rejected step limit value of ikine, allowing for larger movements to be accomplished w/ one ikine command instead of having to break it up into sequential movements.
+% 			b. Also changed reference thetas of all ikine to correspond to the home position. Makes more sense now that large movements are more likely to succeed.
+
+% ^^It appears (based on the comments) this was turned into RSat_Motion_Planning_rev4.m
 % Author(s):
 % Alec Engl
-%Riley Cushing
+% Riley Cushing
 
 % Replace this with the directory that houses rtb, common, and smtb folders
 % corkeTBpath = 'C:\Users\Alec';
