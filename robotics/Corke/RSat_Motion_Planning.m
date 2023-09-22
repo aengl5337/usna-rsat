@@ -4,7 +4,7 @@ format compact
 clc
 figind = 2;
 
-%% RSat_Motion_Planning.m
+%% RSat_NASAdemo_DEC21
 % rev0: (Alec Engl, 05DEC21)
 %      a. borrowed everything from NSTAR_ArmSim_script_Corke_rev3.m
 %      b. Initial draft of the code for the NASA demo (Riley, there are commented instructions for finishing it near the top)
@@ -14,21 +14,24 @@ figind = 2;
 %      small distance away (start at point annotated by '***')
 % rev1: (Riley Cushing, 05DEC21)
 %      a. It has the option of either hardcoding the transform for commanded pose 1 and 2 or allowing the user to enter the coordinates and pose into the command line.
-% 		 b. The commented Transforms for commanded pose 1 and 2 have been confirmed to work, as have a variety of positions and poses near that range.
-% 		 c. Current end effector pose in the hard coded values is aligned with the base coordinate frame.
-% 		 d. Recording in armSim.mp4
+% 	   b. The commented Transforms for commanded pose 1 and 2 have been confirmed to work, as have a variety of positions and poses near that range.
+% 	   c. Current end effector pose in the hard coded values is aligned with the base coordinate frame.
+% 	   d. Recording in armSim.mp4
 % rev2: (Riley Cushing, 06DEC21)
 % 			a. Altered rejected step limit value of ikine, allowing for larger movements to be accomplished w/ one ikine command instead of having to break it up into sequential movements.
 % 			b. Also changed reference thetas of all ikine to correspond to the home position. Makes more sense now that large movements are more likely to succeed.
 % rev3: (???, ???)
-% renamed from RSat_NASAdemo_DEC21 to RSat_Motion_Planning
+%           a. renamed from RSat_NASAdemo_DEC21 to RSat_Motion_Planning
+%           b. Some other untracked changes
+% rev4: (???, ???)
+%           a. Some untracked changes
 % Author(s):
 % Alec Engl
 % Riley Cushing
 
 % Replace this with the directory that houses rtb, common, and smtb folders
-% corkeTBpath = 'C:\Users\Alec';
-corkeTBpath = 'C:\Users\m231362\Desktop\School\RSAT';
+corkeTBpath = 'C:\Users\Alec';
+% corkeTBpath = 'C:\Users\m231362\Desktop\School\RSAT';
 addpath(corkeTBpath);
 addpath rtb common smtb
 
@@ -156,7 +159,7 @@ for i=1:numruns
     b(i)=input("Input Y Angle (deg): ");
     c(i)=input("Input Z Angle (deg): ");
     Tf_cmd{i}=Tx(-X(i))*Ty(-Z(i))*Tz(-Y(i))*Rx(a(i)*pi/180)*Ry(b(i)*pi/180)*Rz(c(i)*pi/180); %Transform calculator
-    thetas_invcmd1(i,:)=180/pi*robot.ikine(Tf_cmd{i},thetas_invcentral,'ilimit',1000); %rlimit increases the rejected step limit, allowing for larger movements to be accomplished
+    thetas_invcmd1(i,:)=180/pi*robot.ikine(Tf_cmd{i},thetas_invcentral,'ilimit',1000,'rlimit',500); %rlimit increases the rejected step limit, allowing for larger movements to be accomplished
     thetas_invcmd1(i,:)=wrapToPi(thetas_invcmd1(i,:)*pi/180)*180/pi %Prevents colision with previous link by avoiding rotation larger than 180 deg in either direction
     % Insert error check, break if thetas is empty
     l=20; % Number of discrete motion steps
@@ -170,10 +173,15 @@ for i=1:numruns
     end
 end
 %%
+%Next 4 runs done with 0 X and 0 Z angle
+%Arm 1 0 deg Y = Point to front glass
+%Arm 1 90 deg Y = Point to right
+%Arm 1 -90 deg Y = Point to left
+%Arm 1 180 deg Y = Point to back wall
 
-
-
-
+%Next 4 runs done with 0 Z and 0 Y angle
+%Arm 1 90 deg X = Point to robot
+%Arm 1 -90 deg X = Point away from robot
 
 
 
