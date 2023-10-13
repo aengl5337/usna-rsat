@@ -2,7 +2,7 @@ function R = planarRotation(theta, axis)
 % INPUTS:
 %
 % theta = float, angle of planar rotation, degrees
-% plane = string, plane of rotation, e.g. 'xy'
+% plane = string, axis of rotation, e.g. 'x'
 %
 % OUTPUTS:
 %
