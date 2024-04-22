@@ -1,4 +1,4 @@
-# USNA_NSTAR_RSat
+# usna-rsat
 
 Welcome to the master GitHub repository for the US Naval Academy Satellite Team for Autonomous Robotics (NSTAR).
 
