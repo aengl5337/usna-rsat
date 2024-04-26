@@ -1,0 +1,11 @@
+[ WARN:1] videoio(MSMF): OnReadSample() is called with error status: -1072873821
+[ WARN:1] videoio(MSMF): async ReadSample() call is failed with error status: -1072873821
+[ WARN:2] videoio(MSMF): OnReadSample() is called with error status: -1072873822
+[ WARN:2] videoio(MSMF): async ReadSample() call is failed with error status: -1072873822
+[ WARN:3] videoio(MSMF): OnReadSample() is called with error status: -1072873821
+[ WARN:3] videoio(MSMF): async ReadSample() call is failed with error status: -1072873821
+
+Backend in rs2_create_device(info_list:000001B514B75D90, index:0):
+_source->QueryInterface(__uuidof(IKsTopologyInfo), reinterpret_cast<void **>(&ks_topology_info)) returned: HResult 0x80004002: "No such interface supported"
+
+No Frames Received!
