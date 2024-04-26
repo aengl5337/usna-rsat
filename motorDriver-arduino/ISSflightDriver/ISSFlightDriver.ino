@@ -3,7 +3,8 @@
 //Created by Peter Sinkovitz, Garrett Hamilton, Alec Engl
 //REV6: 27JUL21 by Alec Engl to Read Feedback from Stepper Motor Encoder
 //REV7: 02AUG21 by Alec Engl to reintroduce SLEEP pin power consumption reduction mechanic
-//REV8: 05AUG21 by Alec Engl to changed variable/function naming and heavily commented
+//REV8: 05AUG21 by Alec Engl to change variable/function naming and heavily commented, and to fix imprecise encoder feedback issue
+//REV8.5: 02SEP21 by Alec Engl to change stepper count variables to unsigned long integers in order to handle very large commands and not go into buffer overflow
 
 #include <Wire.h>
 #include <Arduino.h>
@@ -11,13 +12,12 @@
 #include <Encoder.h>
 
 #define CHA 2 //An interrupt pin
-#define CHB 4 //An interrupt pin
+#define CHB 4 //I don't think this is an interrupt pin
 #define SLEEP 3
 #define MS1 6
 #define MS2 7
 #define STEP 8
 #define DIR 9
-
 
 // General Motor Params, from MicroMo Datasheets
 const int pulsesPerRev_motor = 20; // 18deg per pulse at motor
@@ -46,8 +46,8 @@ int relCommandThetaMulti = 0; // How many multiples of 180?  Since transmitting 
 int activeMotor = 0; // Is motor on could be bool???
 bool forward = 1; // Forward (CCW) or backward (CW) (Forward = 1, backward = 0)
 
-int relCommandStepperCount = 0; // Based on relCommandTheta, how many steps should motor rotate?
-int relCurrentStepperCount = 0; // Updated step count -- once relCurrentStepperCount==relCommandStepperCount, angle command has been fully executed
+unsigned int long relCommandStepperCount = 0; // Based on relCommandTheta, how many steps should motor rotate?
+unsigned int long relCurrentStepperCount = 0; // Updated step count -- once relCurrentStepperCount==relCommandStepperCount, angle command has been fully executed
 
 // Encoder Tracking/Loop Variables
 long oldPosition  = -999; //??? why -999
@@ -72,12 +72,12 @@ float absMemStepperAngle;     // Actual angle for memory use, *not actually stor
 // ENCODER INIT.
 //-------------------
   
-  Encoder myEnc(CHA, CHB);
-  //   avoid using pins with LEDs attached
-  // Change these two numbers to the pins connected to your encoder.
-  //   Best Performance: both pins have interrupt capability
-  //   Good Performance: only the first pin has interrupt capability
-  //   Low Performance:  neither pin has interrupt capability
+Encoder myEnc(CHA, CHB);
+//   avoid using pins with LEDs attached
+// Change these two numbers to the pins connected to your encoder.
+//   Best Performance: both pins have interrupt capability
+//   Good Performance: only the first pin has interrupt capability
+//   Low Performance:  neither pin has interrupt capability
 
 
 //-------------------
@@ -110,25 +110,25 @@ void configEasyDriver(int stepMode) {
 }
 
 void turnStepper(bool forward) { // if 'forward' non-bool, pretty sure this throws an exception
-  if forward //CCW
+  if(forward){ //CCW
     digitalWrite(DIR, LOW);
-    Serial.println("CCW");
-  else !forward //CW
-    digitalWrite(DIR, LOW);
-    Serial.println("CW");
+    // Serial.println("CCW");
+  }else if(!forward){ //CW ***MAY NOT NEED ELSEIF
+    digitalWrite(DIR, HIGH);
+    // Serial.println("CW");
+  }
   /*
   else // if 'forward' non-bool
-    Serial.println("ERROR: INVALID MANEUVER - EXERCISE ABORTED");
+    // Serial.println("ERROR: INVALID MANEUVER - EXERCISE ABORTED");
   */
   
   // Rapidly turn STEP on/off in order to rotate motor.  Will rotate until theoretically reached commanded angle.
   while(relCurrentStepperCount<relCommandStepperCount){
-    
     digitalWrite(STEP,HIGH);
     delayMicroseconds(halfstepdt);
     digitalWrite(STEP, LOW);
     delayMicroseconds(halfstepdt);
-
+    
     // When command one step, poll encoder to get feedback on angular position
     newPosition = myEnc.read();
     if (newPosition != oldPosition) {
@@ -138,14 +138,17 @@ void turnStepper(bool forward) { // if 'forward' non-bool, pretty sure this thro
       Serial.print(newPosition);
       Serial.print(": ");
       Serial.println(newTheta);
+    }
+    
     
     relCurrentStepperCount++;
-    Serial.println(relCurrentStepperCount);
+    // Serial.print("Current Relative Stepper Motor Count: ");
+    // Serial.println(relCurrentStepperCount);
 
     absMemStepperCount2 = EEPROM.read(absMemAdd2);
     absMemStepperCount1 = EEPROM.read(absMemAdd1);
-    //Serial.println(absMemStepperCount1);
-    if forward{
+    //// Serial.println(absMemStepperCount1);
+    if(forward){
       if(absMemStepperCount1==255){
         absMemStepperCount2 = absMemStepperCount2 + 1;
       }
@@ -158,16 +161,18 @@ void turnStepper(bool forward) { // if 'forward' non-bool, pretty sure this thro
     //absMemStepperCount1 = absMemStepperCount1 + 1; //????
     EEPROM.write(absMemAdd2, absMemStepperCount2);
     EEPROM.write(absMemAdd1, absMemStepperCount1);
-    }
   }
 }
+
 
 void receiveData(int byteCount) {
   while(Wire.available()){    // slave may send less than requested
     
-    //Serial.println("Message received:");
+    //// Serial.println("Message received:");
     int commandByte = Wire.read(); // receive a byte as character
-        
+    Serial.print("Raw I2C command byte: ");
+    Serial.println(commandByte);
+    
     if(iCount == 4){
       relCommandTheta = commandByte + (relCommandThetaMulti*180);
       Serial.print("Desired Theta = ");
@@ -192,15 +197,8 @@ void receiveData(int byteCount) {
     if(iCount == 3){
       relCommandThetaMulti = commandByte;
       Serial.print("Multiple: ");
-      if(relCommandThetaMulti == 1){
-        Serial.println("YES");
-      }
-      else if(relCommandThetaMulti == 0){
-        Serial.println("NO");
-      }
-      else{
-        Serial.println("ERROR - INVALID");
-      }
+      Serial.println(relCommandThetaMulti);
+      
       iCount = 4; // iCount 3 ==> 4
     }
     
@@ -208,13 +206,13 @@ void receiveData(int byteCount) {
       forward = commandByte;
       Serial.print("Motor Direction: ");
       if(forward == 1){
-        Serial.println("Positive.");
+        Serial.println("Positive (CCW).");
       }
       else if(forward == 0){
-        Serial.println("Negatve.");
+        Serial.println("Negative (CW).");
       }
       else{
-        Serial.println("UNDEFINED - ERROR.");
+        // Serial.println("UNDEFINED - ERROR.");
       }
       
       iCount = 3; // iCount 2 ==> 3
@@ -230,12 +228,12 @@ void receiveData(int byteCount) {
       if(commandByte == MotorID && activeMotor == 0){  
         // if motor is called by RPi, and is currently asleep/inactive:
         activeMotor = 1;  // ...Indicate that motor is active,
-        Serial.println("Motor Active");
+        // Serial.println("Motor Active");
         iCount = 1; // ...iCount 0 ==> 1,
         digitalWrite(SLEEP,HIGH); // ...And wake up motor.
       }else{
         // if motor isn't called by RPi, ***or is called and is currently active***???:
-        Serial.println("Motor Inactive"); // ...Indicate that motor is inactive,
+        // Serial.println("Motor Inactive"); // ...Indicate that motor is inactive,
         iCount = 0; // ...iCount 0 ==> 0 (stays put),
         // Use activeMotor as a counter, once this statement has passed 5 times then make it '0' again -- see above for explanation
         activeMotor++;
@@ -247,14 +245,15 @@ void receiveData(int byteCount) {
     
     if(iCount == 5){
       Serial.println("MOTOR RESET");
-      Serial.println(" ");
-      Serial.println("Current motor position:  ");
+      /*
+      // Serial.println(" ");
+      // Serial.println("Current motor position:  ");
       absMemStepperCount2 = EEPROM.read(absMemAdd2);// MAKE THIS A FUNCTION
-      Serial.print("Multiple: ");
-      Serial.println(absMemStepperCount2);
+      // Serial.print("Multiple: ");
+      // Serial.println(absMemStepperCount2);
       absMemStepperCount1 = EEPROM.read(absMemAdd1);
-      Serial.print("Stepper Motor Count: ");
-      Serial.println(absMemStepperCount1);
+      // Serial.print("Stepper Motor Count: ");
+      // Serial.println(absMemStepperCount1);
       if(absMemStepperCount2>128){
         motangle = (absMemStepperCount2-256)*6.375 + absMemStepperCount1/theta2stepperCount;
       }
@@ -267,9 +266,10 @@ void receiveData(int byteCount) {
       if(motangle>360){
         motangle = motangle - 360;
       }
-      Serial.print("Actual Motor Angle: ");
-      Serial.println(motangle);
-      Serial.println(" ");
+      // Serial.print("Actual Motor Angle: ");
+      // Serial.println(motangle);
+      // Serial.println(" ");
+      */
       iCount = 0;
     }
   }
@@ -281,7 +281,11 @@ void receiveData(int byteCount) {
 //-------------------
 
 void setup() {    
-  Serial.begin(9600);
+  Serial.begin(115200);
+
+  Serial.print("theta2stepperCount: ");
+  Serial.println(theta2stepperCount);
+  
   Wire.begin(0x9);
   Wire.onReceive(receiveData);     
   /*
@@ -311,15 +315,15 @@ void setup() {
 
   // This will have to change to i2c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-
-  Serial.println(" ");
-  Serial.println("Current motor position:  ");
+  /*?
+  // Serial.println(" ");
+  // Serial.println("Current motor position:  ");
   absMemStepperCount2 = EEPROM.read(absMemAdd2);
-  //Serial.print("[FROM MEM] Multiple: "); //??? DO AN ADDITION OPERATION HERE
-  //Serial.println(absMemStepperCount2);
+  //// Serial.print("[FROM MEM] Multiple: "); //??? DO AN ADDITION OPERATION HERE
+  //// Serial.println(absMemStepperCount2);
   absMemStepperCount1 = EEPROM.read(absMemAdd1);
-  Serial.print("[FROM MEM] Absolute Motor Count: ")
-  Serial.println(absMemStepperCount1);
+  // Serial.print("[FROM MEM] Absolute Motor Count: ")
+  // Serial.println(absMemStepperCount1);
   if(absMemStepperCount2>128){
     motangle = (absMemStepperCount2-256)*6.375 + absMemStepperCount1/theta2stepperCount;
   }
@@ -332,9 +336,10 @@ void setup() {
   if(motangle>360){
     motangle = motangle - 360;
   }
-  Serial.print("Actual Motor Angle: ");
-  Serial.println(motangle);
-  Serial.println(" ");
+  // Serial.print("Actual Motor Angle: ");
+  // Serial.println(motangle);
+  // Serial.println(" ");
+  */
 }
 
 
